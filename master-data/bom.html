@@ -37,6 +37,9 @@
       </p>
     </section>
 
+    <!-- ===== CEK PRASYARAT ===== -->
+    <div id="alertPrasyarat"></div>
+
     <!-- ===== FORM BOM ===== -->
     <section class="card">
       <h2 class="card-title" id="formTitle">➕ Buat BOM Baru</h2>
@@ -92,9 +95,7 @@
                   <th style="width:70px;" class="text-center">Aksi</th>
                 </tr>
               </thead>
-              <tbody id="tabelKomponen">
-                <!-- diisi JS -->
-              </tbody>
+              <tbody id="tabelKomponen"></tbody>
               <tfoot>
                 <tr style="background:var(--primary-light); font-weight:700;">
                   <td colspan="4" class="text-right">TOTAL HPP BOM</td>
@@ -107,18 +108,38 @@
         </div>
 
         <!-- ===== PERBANDINGAN HPP ===== -->
-        <div id="hppCompare" class="alert alert-info hidden">
-          <!-- diisi JS -->
-        </div>
+        <div id="hppCompare" class="alert alert-info hidden"></div>
 
         <div class="form-actions">
           <button type="submit" class="btn btn-primary">
             💾 <span id="btnSubmitText">Simpan BOM</span>
           </button>
           <button type="button" class="btn btn-outline" id="btnReset">🔄 Reset Form</button>
-          <button type="button" class="btn btn-accent" id="btnSeed">📥 Isi Contoh BOM</button>
         </div>
       </form>
+    </section>
+
+    <!-- ===== PANEL SEED & TOOLS ===== -->
+    <section class="card" style="background:linear-gradient(135deg,#fef3c7,#fde68a); border-color:var(--warning);">
+      <h2 class="card-title">🛠️ Alat Bantu</h2>
+      <p class="text-muted mb-16" style="font-size:0.9rem;">
+        Tombol di bawah untuk mengisi data contoh atau reset. Urutan otomatis —
+        tidak perlu buka halaman lain.
+      </p>
+      <div class="flex gap-8" style="flex-wrap:wrap;">
+        <button type="button" class="btn btn-accent" id="btnSeedSemua">
+          🚀 Isi Semua Contoh (Bahan + Produk + BOM)
+        </button>
+        <button type="button" class="btn btn-primary" id="btnSeedBOM">
+          📥 Isi Contoh BOM Saja
+        </button>
+        <button type="button" class="btn btn-danger" id="btnResetBOM">
+          🗑️ Hapus Semua BOM
+        </button>
+        <button type="button" class="btn btn-danger" id="btnResetAll">
+          ⚠️ Reset SEMUA Data
+        </button>
+      </div>
     </section>
 
     <!-- ===== DAFTAR BOM ===== -->
@@ -128,9 +149,7 @@
         <span class="badge badge-primary" id="totalBOM">0 BOM</span>
       </div>
 
-      <div id="daftarBOM">
-        <!-- diisi JS -->
-      </div>
+      <div id="daftarBOM"></div>
     </section>
 
   </main>
@@ -146,19 +165,53 @@
   <script src="../assets/js/app.js"></script>
   <script>
     /* ============================================================
-       BOM — Bill of Materials
+       BOM — Bill of Materials (versi debug & self-check)
        ============================================================ */
 
     const KEY = 'bom';
-    let komponen = []; // komponen sementara di form
+    let komponen = [];
 
-    // ===== GET DATA =====
     function getDaftar() { return Store.get(KEY, []) || []; }
     function setDaftar(list) { Store.set(KEY, list); }
     function getBahan() { return Store.get('bahan_baku', []) || []; }
     function getProduk() { return Store.get('produk_jadi', []) || []; }
 
-    // ===== ISI DROPDOWN PRODUK =====
+    /* ============================================================
+       CEK PRASYARAT (dipanggil saat load & setelah seed)
+       ============================================================ */
+    function cekPrasyarat() {
+      const box = document.getElementById('alertPrasyarat');
+      const bahan = getBahan();
+      const produk = getProduk();
+
+      const kurangBahan = bahan.length === 0;
+      const kurangProduk = produk.length === 0;
+
+      if (!kurangBahan && !kurangProduk) {
+        box.innerHTML = '';
+        return;
+      }
+
+      let html = '<div class="alert alert-warning">⚠️ <div>';
+
+      if (kurangBahan && kurangProduk) {
+        html += '<strong>Data Bahan Baku & Produk Jadi masih KOSONG.</strong><br>';
+        html += 'Klik tombol <strong>🚀 Isi Semua Contoh</strong> di bawah untuk mengisi otomatis.';
+      } else if (kurangBahan) {
+        html += '<strong>Data Bahan Baku masih KOSONG.</strong><br>';
+        html += 'Buka <a href="bahan-baku.html">halaman Bahan Baku</a> dan klik "Isi Contoh Bahan Baku".';
+      } else if (kurangProduk) {
+        html += '<strong>Data Produk Jadi masih KOSONG.</strong><br>';
+        html += 'Buka <a href="produk-jadi.html">halaman Produk Jadi</a> dan klik "Isi Contoh Produk Jadi".';
+      }
+
+      html += '</div></div>';
+      box.innerHTML = html;
+    }
+
+    /* ============================================================
+       DROPDOWN PRODUK
+       ============================================================ */
     function isiDropdownProduk() {
       const sel = document.getElementById('produkId');
       const produk = getProduk();
@@ -170,7 +223,9 @@
       if (currentVal) sel.value = currentVal;
     }
 
-    // ===== RENDER TABEL KOMPONEN (di form) =====
+    /* ============================================================
+       RENDER KOMPONEN (di form)
+       ============================================================ */
     function renderKomponen() {
       const tbody = document.getElementById('tabelKomponen');
       const bahan = getBahan();
@@ -227,7 +282,9 @@
       updateHPPCompare();
     }
 
-    // ===== TAMBAH KOMPONEN =====
+    /* ============================================================
+       TAMBAH / UBAH / HAPUS KOMPONEN
+       ============================================================ */
     document.getElementById('btnTambahBahan').addEventListener('click', function () {
       if (getBahan().length === 0) {
         notify('❌ Belum ada bahan baku. Isi dulu di halaman Bahan Baku.', 'danger');
@@ -237,7 +294,6 @@
       renderKomponen();
     });
 
-    // ===== UBAH / HAPUS KOMPONEN =====
     function ubahBahan(i, val) {
       komponen[i].bahanId = val;
       renderKomponen();
@@ -251,7 +307,9 @@
       renderKomponen();
     }
 
-    // ===== PERBANDINGAN HPP =====
+    /* ============================================================
+       PERBANDINGAN HPP
+       ============================================================ */
     function updateHPPCompare() {
       const produkId = document.getElementById('produkId').value;
       const box = document.getElementById('hppCompare');
@@ -293,10 +351,11 @@
       box.classList.remove('hidden');
     }
 
-    // Panggil saat produk berubah
     document.getElementById('produkId').addEventListener('change', updateHPPCompare);
 
-    // ===== SUBMIT BOM =====
+    /* ============================================================
+       SUBMIT BOM
+       ============================================================ */
     document.getElementById('formBOM').addEventListener('submit', function (e) {
       e.preventDefault();
 
@@ -304,7 +363,6 @@
       if (!produkId) { notify('❌ Pilih produk dulu', 'danger'); return; }
       if (komponen.length === 0) { notify('❌ Tambah minimal 1 bahan', 'danger'); return; }
 
-      // Cek semua bahan terisi
       const belumLengkap = komponen.some(k => !k.bahanId || k.qty <= 0);
       if (belumLengkap) {
         notify('❌ Lengkapi semua baris bahan & qty > 0', 'danger');
@@ -314,7 +372,6 @@
       const id = document.getElementById('bomId').value;
       const list = getDaftar();
 
-      // Cek duplikat: 1 produk hanya boleh 1 BOM
       const dup = list.find(b => b.produkId === produkId && b.id !== id);
       if (dup) {
         notify('❌ Produk ini sudah punya BOM. Edit BOM yang ada.', 'danger');
@@ -344,7 +401,9 @@
       renderDaftarBOM();
     });
 
-    // ===== RENDER DAFTAR BOM (kartu) =====
+    /* ============================================================
+       RENDER DAFTAR BOM (kartu)
+       ============================================================ */
     function renderDaftarBOM() {
       const list = getDaftar();
       const produk = getProduk();
@@ -357,7 +416,7 @@
         container.innerHTML = `
           <div class="alert alert-info">
             Belum ada BOM. Buat BOM pertama di form atas, atau klik
-            <strong>"Isi Contoh BOM"</strong>. 📐
+            <strong>"🚀 Isi Semua Contoh"</strong>. 📐
           </div>`;
         return;
       }
@@ -443,7 +502,9 @@
       }).join('');
     }
 
-    // ===== EDIT BOM =====
+    /* ============================================================
+       EDIT / HAPUS BOM
+       ============================================================ */
     function editBOM(id) {
       const bom = getDaftar().find(b => b.id === id);
       if (!bom) return;
@@ -460,7 +521,6 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // ===== HAPUS BOM =====
     function hapusBOM(id) {
       const bom = getDaftar().find(b => b.id === id);
       if (!bom) return;
@@ -473,7 +533,6 @@
       renderDaftarBOM();
     }
 
-    // ===== RESET FORM =====
     function resetForm() {
       document.getElementById('formBOM').reset();
       document.getElementById('bomId').value = '';
@@ -486,25 +545,78 @@
     }
     document.getElementById('btnReset').addEventListener('click', resetForm);
 
-    // ===== SEED CONTOH BOM =====
-    document.getElementById('btnSeed').addEventListener('click', function () {
+    /* ============================================================
+       SEED DATA CONTOH
+       ============================================================ */
+
+    // ---- Data contoh bahan baku (dari halaman bahan-baku) ----
+    const CONTOH_BAHAN = [
+      { kode: 'BB-0001', nama: 'Kain Katun Putih', kategori: 'Bahan Utama', satuan: 'meter', harga: 25000, stok: 500, stokMin: 100, supplier: 'PT Kain Nusantara' },
+      { kode: 'BB-0002', nama: 'Kain Katun Hitam', kategori: 'Bahan Utama', satuan: 'meter', harga: 27000, stok: 300, stokMin: 100, supplier: 'PT Kain Nusantara' },
+      { kode: 'BB-0003', nama: 'Benang Jahit Putih', kategori: 'Bahan Pembantu', satuan: 'roll', harga: 15000, stok: 80, stokMin: 20, supplier: 'CV Benang Jaya' },
+      { kode: 'BB-0004', nama: 'Benang Jahit Hitam', kategori: 'Bahan Pembantu', satuan: 'roll', harga: 16000, stok: 15, stokMin: 20, supplier: 'CV Benang Jaya' },
+      { kode: 'BB-0005', nama: 'Kancing Baju 18L', kategori: 'Bahan Pembantu', satuan: 'box', harga: 45000, stok: 25, stokMin: 10, supplier: 'Toko Aksesoris Mode' },
+      { kode: 'BB-0006', nama: 'Resleting 20cm', kategori: 'Bahan Pembantu', satuan: 'pcs', harga: 3500, stok: 200, stokMin: 50, supplier: 'Toko Aksesoris Mode' },
+      { kode: 'BB-0007', nama: 'Label Merek', kategori: 'Bahan Pembantu', satuan: 'pcs', harga: 800, stok: 1000, stokMin: 200, supplier: 'Percetakan Label ID' },
+      { kode: 'BB-0008', nama: 'Plastik Kemasan', kategori: 'Kemasan', satuan: 'pcs', harga: 500, stok: 2000, stokMin: 500, supplier: 'PT Plastik Sejahtera' },
+      { kode: 'BB-0009', nama: 'Kardus Packing', kategori: 'Kemasan', satuan: 'pcs', harga: 3000, stok: 150, stokMin: 100, supplier: 'PT Plastik Sejahtera' },
+      { kode: 'BB-0010', nama: 'Tinta Sablon Hitam', kategori: 'Bahan Pembantu', satuan: 'kg', harga: 85000, stok: 8, stokMin: 5, supplier: 'CV Tinta Warna' },
+    ];
+
+    // ---- Data contoh produk jadi ----
+    const CONTOH_PRODUK = [
+      { kode: 'PJ-0001', nama: 'Kemeja Pria Lengan Panjang', kategori: 'Pakaian', satuan: 'pcs', hargaJual: 175000, hargaPokok: 110000, stok: 45, target: 100 },
+      { kode: 'PJ-0002', nama: 'Kemeja Pria Lengan Pendek', kategori: 'Pakaian', satuan: 'pcs', hargaJual: 150000, hargaPokok: 95000, stok: 30, target: 80 },
+      { kode: 'PJ-0003', nama: 'Kaos Polos Katun', kategori: 'Pakaian', satuan: 'pcs', hargaJual: 85000, hargaPokok: 50000, stok: 120, target: 200 },
+      { kode: 'PJ-0004', nama: 'Kaos Sablon Custom', kategori: 'Pakaian', satuan: 'pcs', hargaJual: 110000, hargaPokok: 65000, stok: 60, target: 150 },
+      { kode: 'PJ-0005', nama: 'Kemeja Wanita Slim Fit', kategori: 'Pakaian', satuan: 'pcs', hargaJual: 165000, hargaPokok: 105000, stok: 25, target: 80 },
+    ];
+
+    // ---- Fungsi seed bahan baku ----
+    function seedBahan() {
+      const list = getBahan();
+      const existing = new Set(list.map(b => b.kode));
+      const baru = CONTOH_BAHAN
+        .filter(c => !existing.has(c.kode))
+        .map(c => ({ id: IDGen.generate('BB'), ...c }));
+      if (baru.length) Store.set('bahan_baku', [...list, ...baru]);
+      return baru.length;
+    }
+
+    // ---- Fungsi seed produk jadi ----
+    function seedProduk() {
+      const list = getProduk();
+      const existing = new Set(list.map(p => p.kode));
+      const baru = CONTOH_PRODUK
+        .filter(c => !existing.has(c.kode))
+        .map(c => ({ id: IDGen.generate('PJ'), ...c }));
+      if (baru.length) Store.set('produk_jadi', [...list, ...baru]);
+      return baru.length;
+    }
+
+    // ---- Fungsi seed BOM ----
+    function seedBOM(silent = false) {
       const produk = getProduk();
       const bahan = getBahan();
 
-      if (produk.length === 0 || bahan.length === 0) {
-        notify('❌ Isi dulu Produk Jadi & Bahan Baku!', 'danger');
-        return;
+      if (produk.length === 0) {
+        if (!silent) notify('❌ Produk jadi masih kosong!', 'danger');
+        return 0;
+      }
+      if (bahan.length === 0) {
+        if (!silent) notify('❌ Bahan baku masih kosong!', 'danger');
+        return 0;
       }
 
-      // Cari by kode
       const findProduk = (kode) => produk.find(p => p.kode === kode);
       const findBahan = (kode) => bahan.find(b => b.kode === kode);
-
+      const list = getDaftar();
+      const existing = new Set(list.map(b => b.produkId));
       const contoh = [];
 
-      // Kemeja Pria Lengan Panjang = 2m kain + 1 roll benang + 5 kancing + 1 label + 1 plastik
+      // Kemeja Pria Lengan Panjang
       const p1 = findProduk('PJ-0001');
-      if (p1) {
+      if (p1 && !existing.has(p1.id)) {
         const komp = [
           { b: findBahan('BB-0001'), qty: 2 },
           { b: findBahan('BB-0003'), qty: 0.1 },
@@ -512,37 +624,147 @@
           { b: findBahan('BB-0007'), qty: 1 },
           { b: findBahan('BB-0008'), qty: 1 },
         ].filter(x => x.b).map(x => ({ bahanId: x.b.id, qty: x.qty }));
-
-        if (komp.length) {
-          contoh.push({
-            produkId: p1.id, outputQty: 1,
-            catatan: 'Resep standar kemeja pria lengan panjang',
-            komponen: komp,
-          });
-        }
+        if (komp.length) contoh.push({
+          produkId: p1.id, outputQty: 1,
+          catatan: 'Resep standar kemeja pria lengan panjang',
+          komponen: komp,
+        });
       }
 
-      // Kaos Polos = 1.5m kain + 0.05 benang + 1 label + 1 plastik
+      // Kaos Polos Katun
       const p3 = findProduk('PJ-0003');
-      if (p3) {
+      if (p3 && !existing.has(p3.id)) {
         const komp = [
           { b: findBahan('BB-0002'), qty: 1.5 },
           { b: findBahan('BB-0003'), qty: 0.05 },
           { b: findBahan('BB-0007'), qty: 1 },
           { b: findBahan('BB-0008'), qty: 1 },
         ].filter(x => x.b).map(x => ({ bahanId: x.b.id, qty: x.qty }));
-
-        if (komp.length) {
-          contoh.push({
-            produkId: p3.id, outputQty: 1,
-            catatan: 'Resep standar kaos polos katun',
-            komponen: komp,
-          });
-        }
+        if (komp.length) contoh.push({
+          produkId: p3.id, outputQty: 1,
+          catatan: 'Resep standar kaos polos katun',
+          komponen: komp,
+        });
       }
 
       // Kemeja Wanita Slim Fit
       const p5 = findProduk('PJ-0005');
-      if (p5) {
+      if (p5 && !existing.has(p5.id)) {
         const komp = [
-    
+          { b: findBahan('BB-0001'), qty: 1.5 },
+          { b: findBahan('BB-0003'), qty: 0.1 },
+          { b: findBahan('BB-0005'), qty: 0.08 },
+          { b: findBahan('BB-0007'), qty: 1 },
+          { b: findBahan('BB-0008'), qty: 1 },
+        ].filter(x => x.b).map(x => ({ bahanId: x.b.id, qty: x.qty }));
+        if (komp.length) contoh.push({
+          produkId: p5.id, outputQty: 1,
+          catatan: 'Resep standar kemeja wanita slim fit',
+          komponen: komp,
+        });
+      }
+
+      if (contoh.length === 0) {
+        if (!silent) notify('ℹ️ Semua produk contoh sudah punya BOM.', 'warning');
+        return 0;
+      }
+
+      const baru = contoh.map(c => ({ id: IDGen.generate('BOM'), ...c }));
+      setDaftar([...list, ...baru]);
+      return baru.length;
+    }
+
+    /* ============================================================
+       TOMBOL: ISI SEMUA CONTOH
+       ============================================================ */
+    document.getElementById('btnSeedSemua').addEventListener('click', function () {
+      const jmlBahan = seedBahan();
+      const jmlProduk = seedProduk();
+      const jmlBOM = seedBOM(true);
+
+      isiDropdownProduk();
+      renderDaftarBOM();
+      cekPrasyarat();
+
+      const pesan = `✅ Dimuat: ${jmlBahan} bahan, ${jmlProduk} produk, ${jmlBOM} BOM`;
+      if (jmlBahan === 0 && jmlProduk === 0 && jmlBOM === 0) {
+        notify('ℹ️ Semua data contoh sudah ada sebelumnya.', 'warning');
+      } else {
+        notify(pesan, 'success');
+      }
+    });
+
+    /* ============================================================
+       TOMBOL: ISI CONTOH BOM SAJA
+       ============================================================ */
+    document.getElementById('btnSeedBOM').addEventListener('click', function () {
+      const jml = seedBOM(true);
+      renderDaftarBOM();
+      cekPrasyarat();
+
+      const pesan = `✅ Dimuat: ${jmlBahan} bahan, ${jmlProduk} produk, ${jmlBOM} BOM`;
+      if (jmlBahan === 0 && jmlProduk === 0 && jmlBOM === 0) {
+        notify('ℹ️ Semua data contoh sudah ada sebelumnya.', 'warning');
+      } else {
+        notify(pesan, 'success');
+      }
+    });
+
+    /* ============================================================
+       TOMBOL: ISI CONTOH BOM SAJA
+       ============================================================ */
+    document.getElementById('btnSeedBOM').addEventListener('click', function () {
+      const jml = seedBOM(true);
+      renderDaftarBOM();
+      cekPrasyarat();
+
+      if (jml > 0) {
+        notify(`✅ ${jml} BOM contoh dimuat!`, 'success');
+      } else {
+        const b = getBahan().length;
+        const p = getProduk().length;
+        if (b === 0 || p === 0) {
+          notify(`❌ Bahan: ${b} item, Produk: ${p} item. Isi dulu via "🚀 Isi Semua Contoh".`, 'danger');
+        } else {
+          notify('ℹ️ Semua produk sudah punya BOM.', 'warning');
+        }
+      }
+    });
+
+    /* ============================================================
+       TOMBOL: HAPUS SEMUA BOM
+       ============================================================ */
+    document.getElementById('btnResetBOM').addEventListener('click', function () {
+      if (!confirm('Yakin hapus SEMUA BOM? (Bahan & Produk tetap ada)')) return;
+      Store.set('bom', []);
+      renderDaftarBOM();
+      notify('🗑️ Semua BOM dihapus', 'warning');
+    });
+
+    /* ============================================================
+       TOMBOL: RESET SEMUA DATA
+       ============================================================ */
+    document.getElementById('btnResetAll').addEventListener('click', function () {
+      if (!confirm('⚠️ Hapus SEMUA data (usaha, akun, bahan, produk, BOM, SPK)?\n\nTidak bisa dibatalkan!')) return;
+      if (!confirm('Yakin? Ini akan menghapus semua data yang sudah diinput.')) return;
+
+      Object.keys(localStorage)
+        .filter(k => k.startsWith('ilham_mfg_'))
+        .forEach(k => localStorage.removeItem(k));
+
+      isiDropdownProduk();
+      renderDaftarBOM();
+      cekPrasyarat();
+      notify('🗑️ Semua data direset', 'danger');
+    });
+
+    /* ============================================================
+       INIT
+       ============================================================ */
+    isiDropdownProduk();
+    renderKomponen();
+    renderDaftarBOM();
+    cekPrasyarat();
+  </script>
+</body>
+</html>
