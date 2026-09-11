@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bill of Materials — Ilham ERP Manufaktur</title>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body>
+
+  <!-- ===== HEADER ===== -->
+  <header class="app-header">
+    <div class="container header-inner">
+      <a href="../index.html" class="brand">
+        <span class="brand-icon">🏭</span>
+        <span>Ilham ERP <small>MANUFAKTUR</small></span>
+      </a>
+      <nav class="breadcrumb">
+        <a href="../index.html">Dashboard</a>
+        <span>/</span>
+        <span>Master Data</span>
+        <span>/</span>
+        <span class="current">Bill of Materials</span>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ===== MAIN ===== -->
+  <main class="container">
+
+    <section class="page-title">
+      <h1>📐 Bill of Materials (BOM)</h1>
+      <p class="subtitle">
+        Resep produk: komposisi bahan baku untuk menghasilkan
+        <strong>1 unit produk jadi</strong>. BOM ini jadi acuan saat
+        produksi (SPK) dan perhitungan Harga Pokok Produksi.
+      </p>
+    </section>
+
+    <!-- ===== FORM BOM ===== -->
+    <section class="card">
+      <h2 class="card-title" id="formTitle">➕ Buat BOM Baru</h2>
+
+      <form id="formBOM" autocomplete="off">
+        <input type="hidden" id="bomId" />
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="produkId">
+              Produk Jadi <span class="required">*</span>
+            </label>
+            <select id="produkId" class="form-select" required>
+              <option value="">— Pilih Produk —</option>
+            </select>
+            <div class="form-hint">Produk yang akan dihasilkan</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="outputQty">
+              Hasil Produksi per BOM <span class="required">*</span>
+            </label>
+            <input type="number" id="outputQty" class="form-control"
+                   value="1" min="1" step="any" required />
+            <div class="form-hint">Biasanya 1 unit</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="catatan">Catatan BOM</label>
+          <input type="text" id="catatan" class="form-control"
+                 placeholder="Opsional — misal: 'Untuk produksi kemeja ukuran L'" />
+        </div>
+
+        <!-- ===== KOMPONEN BAHAN ===== -->
+        <div style="margin-top:24px; padding-top:20px; border-top:1px solid var(--border);">
+          <div class="flex-between mb-16">
+            <h3 style="font-size:1rem; font-weight:700;">🧱 Komponen Bahan Baku</h3>
+            <button type="button" class="btn btn-sm btn-accent" id="btnTambahBahan">
+              ➕ Tambah Bahan
+            </button>
+          </div>
+
+          <div class="table-wrapper mb-16">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Bahan Baku</th>
+                  <th style="width:140px;">Qty</th>
+                  <th style="width:100px;" class="text-center">Satuan</th>
+                  <th style="width:140px;" class="text-right">Harga Satuan</th>
+                  <th style="width:140px;" class="text-right">Subtotal</th>
+                  <th style="width:70px;" class="text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="tabelKomponen">
+                <!-- diisi JS -->
+              </tbody>
+              <tfoot>
+                <tr style="background:var(--primary-light); font-weight:700;">
+                  <td colspan="4" class="text-right">TOTAL HPP BOM</td>
+                  <td class="text-right" id="totalHPP">Rp 0</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- ===== PERBANDINGAN HPP ===== -->
+        <div id="hppCompare" class="alert alert-info hidden">
+          <!-- diisi JS -->
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">
+            💾 <span id="btnSubmitText">Simpan BOM</span>
+          </button>
+          <button type="button" class="btn btn-outline" id="btnReset">🔄 Reset Form</button>
+          <button type="button" class="btn btn-accent" id="btnSeed">📥 Isi Contoh BOM</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ===== DAFTAR BOM ===== -->
+    <section class="card">
+      <div class="flex-between mb-16">
+        <h2 class="card-title mb-0">📋 Daftar BOM</h2>
+        <span class="badge badge-primary" id="totalBOM">0 BOM</span>
+      </div>
+
+      <div id="daftarBOM">
+        <!-- diisi JS -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="app-footer">
+    <div class="container">
+      <p>© 2025 Ilham ERP — Manufaktur | Accounting Learning System</p>
+    </div>
+  </footer>
+
+  <!-- ===== SCRIPT ===== -->
+  <script src="../assets/js/app.js"></script>
+  <script>
+    /* ============================================================
+       BOM — Bill of Materials
+       ============================================================ */
+
+    const KEY = 'bom';
+    let komponen = []; // komponen sementara di form
+
+    // ===== GET DATA =====
+    function getDaftar() { return Store.get(KEY, []) || []; }
+    function setDaftar(list) { Store.set(KEY, list); }
+    function getBahan() { return Store.get('bahan_baku', []) || []; }
+    function getProduk() { return Store.get('produk_jadi', []) || []; }
+
+    // ===== ISI DROPDOWN PRODUK =====
+    function isiDropdownProduk() {
+      const sel = document.getElementById('produkId');
+      const produk = getProduk();
+      const currentVal = sel.value;
+
+      sel.innerHTML = '<option value="">— Pilih Produk —</option>' +
+        produk.map(p => `<option value="${p.id}">${esc(p.kode)} — ${esc(p.nama)}</option>`).join('');
+
+      if (currentVal) sel.value = currentVal;
+    }
+
+    // ===== RENDER TABEL KOMPONEN (di form) =====
+    function renderKomponen() {
+      const tbody = document.getElementById('tabelKomponen');
+      const bahan = getBahan();
+
+      if (komponen.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="table-empty">
+              Belum ada bahan. Klik <strong>"➕ Tambah Bahan"</strong> di atas. 🧱
+            </td>
+          </tr>`;
+        document.getElementById('totalHPP').textContent = 'Rp 0';
+        updateHPPCompare();
+        return;
+      }
+
+      let total = 0;
+
+      tbody.innerHTML = komponen.map((k, i) => {
+        const bahanData = bahan.find(b => b.id === k.bahanId);
+        const nama = bahanData ? `${bahanData.kode} — ${bahanData.nama}` : '(bahan dihapus)';
+        const harga = bahanData ? Number(bahanData.harga) : 0;
+        const satuan = bahanData ? bahanData.satuan : '-';
+        const subtotal = Number(k.qty) * harga;
+        total += subtotal;
+
+        return `
+          <tr>
+            <td>
+              <select class="form-select" onchange="ubahBahan(${i}, this.value)">
+                <option value="">— Pilih Bahan —</option>
+                ${bahan.map(b => `
+                  <option value="${b.id}" ${b.id === k.bahanId ? 'selected' : ''}>
+                    ${esc(b.kode)} — ${esc(b.nama)}
+                  </option>
+                `).join('')}
+              </select>
+            </td>
+            <td>
+              <input type="number" class="form-control" min="0" step="any"
+                     value="${k.qty}" onchange="ubahQty(${i}, this.value)" />
+            </td>
+            <td class="text-center">${esc(satuan)}</td>
+            <td class="text-right">${Fmt.rupiah(harga)}</td>
+            <td class="text-right"><strong>${Fmt.rupiah(subtotal)}</strong></td>
+            <td class="text-center">
+              <button type="button" class="btn btn-sm btn-danger"
+                      onclick="hapusKomponen(${i})">🗑️</button>
+            </td>
+          </tr>`;
+      }).join('');
+
+      document.getElementById('totalHPP').textContent = Fmt.rupiah(total);
+      updateHPPCompare();
+    }
+
+    // ===== TAMBAH KOMPONEN =====
+    document.getElementById('btnTambahBahan').addEventListener('click', function () {
+      if (getBahan().length === 0) {
+        notify('❌ Belum ada bahan baku. Isi dulu di halaman Bahan Baku.', 'danger');
+        return;
+      }
+      komponen.push({ bahanId: '', qty: 1 });
+      renderKomponen();
+    });
+
+    // ===== UBAH / HAPUS KOMPONEN =====
+    function ubahBahan(i, val) {
+      komponen[i].bahanId = val;
+      renderKomponen();
+    }
+    function ubahQty(i, val) {
+      komponen[i].qty = Number(val) || 0;
+      renderKomponen();
+    }
+    function hapusKomponen(i) {
+      komponen.splice(i, 1);
+      renderKomponen();
+    }
+
+    // ===== PERBANDINGAN HPP =====
+    function updateHPPCompare() {
+      const produkId = document.getElementById('produkId').value;
+      const box = document.getElementById('hppCompare');
+
+      if (!produkId || komponen.length === 0) {
+        box.classList.add('hidden');
+        return;
+      }
+
+      const produk = getProduk().find(p => p.id === produkId);
+      if (!produk) { box.classList.add('hidden'); return; }
+
+      const totalBOM = komponen.reduce((s, k) => {
+        const b = getBahan().find(x => x.id === k.bahanId);
+        return s + (b ? Number(k.qty) * Number(b.harga) : 0);
+      }, 0);
+
+      const hppStd = Number(produk.hargaPokok) || 0;
+      if (hppStd === 0) {
+        box.className = 'alert alert-info';
+        box.innerHTML = `💰 <strong>Total HPP BOM: ${Fmt.rupiah(totalBOM)}</strong> — produk belum punya HPP standar sebagai pembanding.`;
+        box.classList.remove('hidden');
+        return;
+      }
+
+      const selisih = totalBOM - hppStd;
+      const persen = (selisih / hppStd * 100).toFixed(1);
+
+      if (selisih > 0) {
+        box.className = 'alert alert-warning';
+        box.innerHTML = `⚠️ <strong>HPP BOM ${Fmt.rupiah(totalBOM)}</strong> lebih <strong>tinggi ${Fmt.rupiah(selisih)} (${persen}%)</strong> dari HPP Standar (${Fmt.rupiah(hppStd)}).`;
+      } else if (selisih < 0) {
+        box.className = 'alert alert-success';
+        box.innerHTML = `✅ <strong>HPP BOM ${Fmt.rupiah(totalBOM)}</strong> lebih <strong>hemat ${Fmt.rupiah(Math.abs(selisih))} (${Math.abs(persen)}%)</strong> dari HPP Standar (${Fmt.rupiah(hppStd)}).`;
+      } else {
+        box.className = 'alert alert-info';
+        box.innerHTML = `🎯 <strong>HPP BOM sama persis</strong> dengan HPP Standar (${Fmt.rupiah(hppStd)}).`;
+      }
+      box.classList.remove('hidden');
+    }
+
+    // Panggil saat produk berubah
+    document.getElementById('produkId').addEventListener('change', updateHPPCompare);
+
+    // ===== SUBMIT BOM =====
+    document.getElementById('formBOM').addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      const produkId = document.getElementById('produkId').value;
+      if (!produkId) { notify('❌ Pilih produk dulu', 'danger'); return; }
+      if (komponen.length === 0) { notify('❌ Tambah minimal 1 bahan', 'danger'); return; }
+
+      // Cek semua bahan terisi
+      const belumLengkap = komponen.some(k => !k.bahanId || k.qty <= 0);
+      if (belumLengkap) {
+        notify('❌ Lengkapi semua baris bahan & qty > 0', 'danger');
+        return;
+      }
+
+      const id = document.getElementById('bomId').value;
+      const list = getDaftar();
+
+      // Cek duplikat: 1 produk hanya boleh 1 BOM
+      const dup = list.find(b => b.produkId === produkId && b.id !== id);
+      if (dup) {
+        notify('❌ Produk ini sudah punya BOM. Edit BOM yang ada.', 'danger');
+        return;
+      }
+
+      const data = {
+        id: id || IDGen.generate('BOM'),
+        produkId,
+        outputQty: Number(document.getElementById('outputQty').value) || 1,
+        catatan: document.getElementById('catatan').value.trim(),
+        komponen: komponen.map(k => ({ bahanId: k.bahanId, qty: Number(k.qty) })),
+      };
+
+      const idx = list.findIndex(b => b.id === data.id);
+
+      if (idx >= 0) {
+        list[idx] = data;
+        notify('✅ BOM diperbarui', 'success');
+      } else {
+        list.push(data);
+        notify('✅ BOM dibuat', 'success');
+      }
+
+      setDaftar(list);
+      resetForm();
+      renderDaftarBOM();
+    });
+
+    // ===== RENDER DAFTAR BOM (kartu) =====
+    function renderDaftarBOM() {
+      const list = getDaftar();
+      const produk = getProduk();
+      const bahan = getBahan();
+      const container = document.getElementById('daftarBOM');
+
+      document.getElementById('totalBOM').textContent = `${list.length} BOM`;
+
+      if (list.length === 0) {
+        container.innerHTML = `
+          <div class="alert alert-info">
+            Belum ada BOM. Buat BOM pertama di form atas, atau klik
+            <strong>"Isi Contoh BOM"</strong>. 📐
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = list.map(bom => {
+        const p = produk.find(x => x.id === bom.produkId);
+        if (!p) return '';
+
+        const komponenHTML = bom.komponen.map(k => {
+          const bh = bahan.find(x => x.id === k.bahanId);
+          if (!bh) return '';
+          const sub = Number(k.qty) * Number(bh.harga);
+          return `
+            <tr>
+              <td>${esc(bh.kode)} — ${esc(bh.nama)}</td>
+              <td class="text-right">${Fmt.angka(k.qty)} ${esc(bh.satuan)}</td>
+              <td class="text-right">${Fmt.rupiah(bh.harga)}</td>
+              <td class="text-right"><strong>${Fmt.rupiah(sub)}</strong></td>
+            </tr>`;
+        }).join('');
+
+        const total = bom.komponen.reduce((s, k) => {
+          const bh = bahan.find(x => x.id === k.bahanId);
+          return s + (bh ? Number(k.qty) * Number(bh.harga) : 0);
+        }, 0);
+
+        const hppStd = Number(p.hargaPokok) || 0;
+        const selisihBadge = hppStd > 0
+          ? (total > hppStd
+              ? `<span class="badge badge-danger">+${Fmt.rupiah(total - hppStd)}</span>`
+              : total < hppStd
+                ? `<span class="badge badge-success">−${Fmt.rupiah(hppStd - total)}</span>`
+                : `<span class="badge badge-primary">= Sama</span>`)
+          : '';
+
+        return `
+          <div class="card" style="margin-bottom:16px;">
+            <div class="flex-between mb-16">
+              <div>
+                <h3 style="color:var(--primary); margin-bottom:4px;">
+                  📦 ${esc(p.kode)} — ${esc(p.nama)}
+                </h3>
+                <div class="text-muted" style="font-size:0.88rem;">
+                  Output: <strong>${Fmt.angka(bom.outputQty)} ${esc(p.satuan)}</strong>
+                  ${bom.catatan ? ` | ${esc(bom.catatan)}` : ''}
+                </div>
+              </div>
+              <div class="flex gap-8">
+                <button class="btn btn-sm btn-outline" onclick="editBOM('${bom.id}')">✏️ Edit</button>
+                <button class="btn btn-sm btn-danger" onclick="hapusBOM('${bom.id}')">🗑️</button>
+              </div>
+            </div>
+
+            <div class="table-wrapper">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Bahan Baku</th>
+                    <th class="text-right" style="width:160px;">Qty</th>
+                    <th class="text-right" style="width:140px;">Harga Satuan</th>
+                    <th class="text-right" style="width:150px;">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>${komponenHTML}</tbody>
+                <tfoot>
+                  <tr style="background:var(--primary-light); font-weight:700;">
+                    <td colspan="3" class="text-right">Total HPP BOM</td>
+                    <td class="text-right">${Fmt.rupiah(total)}</td>
+                  </tr>
+                  ${hppStd > 0 ? `
+                  <tr>
+                    <td colspan="3" class="text-right text-muted">HPP Standar Produk</td>
+                    <td class="text-right text-muted">${Fmt.rupiah(hppStd)}</td>
+                  </tr>
+                  <tr>
+                    <td colspan="3" class="text-right">Selisih</td>
+                    <td class="text-right">${selisihBadge}</td>
+                  </tr>` : ''}
+                </tfoot>
+              </table>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    // ===== EDIT BOM =====
+    function editBOM(id) {
+      const bom = getDaftar().find(b => b.id === id);
+      if (!bom) return;
+
+      document.getElementById('bomId').value = bom.id;
+      document.getElementById('produkId').value = bom.produkId;
+      document.getElementById('outputQty').value = bom.outputQty;
+      document.getElementById('catatan').value = bom.catatan || '';
+      komponen = bom.komponen.map(k => ({ ...k }));
+
+      document.getElementById('formTitle').textContent = '✏️ Edit BOM';
+      document.getElementById('btnSubmitText').textContent = 'Update BOM';
+      renderKomponen();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // ===== HAPUS BOM =====
+    function hapusBOM(id) {
+      const bom = getDaftar().find(b => b.id === id);
+      if (!bom) return;
+      const p = getProduk().find(x => x.id === bom.produkId);
+      const nama = p ? p.nama : 'BOM';
+      if (!confirm(`Yakin hapus BOM untuk "${nama}"?`)) return;
+
+      setDaftar(getDaftar().filter(b => b.id !== id));
+      notify('🗑️ BOM dihapus', 'warning');
+      renderDaftarBOM();
+    }
+
+    // ===== RESET FORM =====
+    function resetForm() {
+      document.getElementById('formBOM').reset();
+      document.getElementById('bomId').value = '';
+      document.getElementById('outputQty').value = 1;
+      komponen = [];
+      renderKomponen();
+      document.getElementById('formTitle').textContent = '➕ Buat BOM Baru';
+      document.getElementById('btnSubmitText').textContent = 'Simpan BOM';
+      document.getElementById('hppCompare').classList.add('hidden');
+    }
+    document.getElementById('btnReset').addEventListener('click', resetForm);
+
+    // ===== SEED CONTOH BOM =====
+    document.getElementById('btnSeed').addEventListener('click', function () {
+      const produk = getProduk();
+      const bahan = getBahan();
+
+      if (produk.length === 0 || bahan.length === 0) {
+        notify('❌ Isi dulu Produk Jadi & Bahan Baku!', 'danger');
+        return;
+      }
+
+      // Cari by kode
+      const findProduk = (kode) => produk.find(p => p.kode === kode);
+      const findBahan = (kode) => bahan.find(b => b.kode === kode);
+
+      const contoh = [];
+
+      // Kemeja Pria Lengan Panjang = 2m kain + 1 roll benang + 5 kancing + 1 label + 1 plastik
+      const p1 = findProduk('PJ-0001');
+      if (p1) {
+        const komp = [
+          { b: findBahan('BB-0001'), qty: 2 },
+          { b: findBahan('BB-0003'), qty: 0.1 },
+          { b: findBahan('BB-0005'), qty: 0.1 },
+          { b: findBahan('BB-0007'), qty: 1 },
+          { b: findBahan('BB-0008'), qty: 1 },
+        ].filter(x => x.b).map(x => ({ bahanId: x.b.id, qty: x.qty }));
+
+        if (komp.length) {
+          contoh.push({
+            produkId: p1.id, outputQty: 1,
+            catatan: 'Resep standar kemeja pria lengan panjang',
+            komponen: komp,
+          });
+        }
+      }
+
+      // Kaos Polos = 1.5m kain + 0.05 benang + 1 label + 1 plastik
+      const p3 = findProduk('PJ-0003');
+      if (p3) {
+        const komp = [
+          { b: findBahan('BB-0002'), qty: 1.5 },
+          { b: findBahan('BB-0003'), qty: 0.05 },
+          { b: findBahan('BB-0007'), qty: 1 },
+          { b: findBahan('BB-0008'), qty: 1 },
+        ].filter(x => x.b).map(x => ({ bahanId: x.b.id, qty: x.qty }));
+
+        if (komp.length) {
+          contoh.push({
+            produkId: p3.id, outputQty: 1,
+            catatan: 'Resep standar kaos polos katun',
+            komponen: komp,
+          });
+        }
+      }
+
+      // Kemeja Wanita Slim Fit
+      const p5 = findProduk('PJ-0005');
+      if (p5) {
+        const komp = [
+    
